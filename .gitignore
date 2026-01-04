@@ -1,0 +1,8 @@
+venv/
+.env
+.env.*
+.env.local
+__pycache__/
+*.log
+.DS_Store
+rag_kanri.db
