@@ -242,6 +242,20 @@
                 loadingOverlay.style.display = 'none';
             }
         });
+
+        // Health check API呼び出し
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/health');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('health:', data);
+            } catch (error) {
+                console.error(error);
+            }
+        });
     </script>
 </body>
 </html>
