@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG回答 - 貯水槽修理案件管理システム</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .answer-card {
+            margin-bottom: 1.5rem;
+        }
+        .reasoning-section {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        .file-link {
+            color: #0d6efd;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: inherit;
+            margin: 0 2px;
+        }
+        .file-link:hover {
+            color: #0a58ca;
+            text-decoration: underline;
+        }
+        .case-number {
+            color: #198754;
+            font-weight: 600;
+            background-color: #d1e7dd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .answer-content {
+            background-color: #ffffff;
+        }
+        .answer-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #ffffff;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e9ecef;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 1rem;
+            line-height: 1.8;
+            margin: 0;
+        }
+        .answer-content strong {
+            color: #0d6efd;
+            font-weight: 600;
+        }
+        .case-info-item {
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            background-color: #f8f9fa;
+            border-radius: 0.25rem;
+        }
+        .case-info-item strong {
+            display: inline-block;
+            min-width: 140px;
+            color: #495057;
+        }
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #dee2e6, transparent);
+            margin: 2rem 0;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+            .card {
+                margin: 0.5rem 0;
+            }
+            .navbar-brand {
+                font-size: 1rem;
+            }
+            .d-md-flex {
+                flex-direction: column;
+            }
+            .d-md-flex .btn {
+                margin-bottom: 0.5rem;
+                width: 100%;
+            }
+            .case-info-item strong {
+                min-width: 100px;
+                font-size: 0.9rem;
+            }
+            .answer-content {
+                padding: 1rem;
+                font-size: 0.9rem;
+            }
+            .contractor-item {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="bi bi-tools"></i> 貯水槽修理案件管理システム
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-10 offset-md-1">
+                <!-- 案件情報表示 -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="bi bi-info-circle"></i> 案件情報</h5>
+                    </div>
+                    <div class="card-body" id="caseInfo">
+                        <!-- 案件情報がここに表示されます -->
+                    </div>
+                </div>
+
+                <!-- 回答表示 -->
+                <div class="card answer-card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-chat-dots"></i> RAG回答</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="answerContent">
+                            <!-- 回答がここに表示されます -->
+                        </div>
+
+                        <!-- 検索結果（参照チャンク） -->
+                        <div class="search-results-section mt-4" id="searchResultsSection" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-search"></i> 検索結果（参照したKnowledge情報）
+                                    <span id="searchResultsCount" class="badge bg-secondary ms-2"></span>
+                                </h5>
+                                <button class="btn btn-sm btn-outline-danger" onclick="closeSearchResults()" title="閉じる">
+                                    <i class="bi bi-x-lg"></i> 閉じる
+                                </button>
+                            </div>
+                            <div id="searchResults" class="mb-3">
+                                <!-- 検索結果がここに表示されます -->
+                            </div>
+                        </div>
+                        
+                        <!-- 検索結果表示ボタン -->
+                        <div id="searchResultsToggleButton" class="mt-3">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="showSearchResults()">
+                                <i class="bi bi-search"></i> 検索結果を表示
+                            </button>
+                        </div>
+
+                        <!-- 判断理由 -->
+                        <div class="reasoning-section mt-4">
+                            <h5 class="mb-3"><i class="bi bi-lightbulb-fill text-warning"></i> 判断理由</h5>
+                            <div id="reasoning" class="mb-3"></div>
+                            <div class="mt-3">
+                                <strong><i class="bi bi-file-text"></i> 参照ファイル:</strong>
+                                <div id="referencedFiles" class="mt-2">
+                                    <!-- 参照ファイル名がここに表示されます -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作ボタン -->
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center mt-4">
+                    <button class="btn btn-primary" onclick="window.location.href='/'">
+                        <i class="bi bi-arrow-left"></i> 新しい案件を入力
+                    </button>
+                    <button class="btn btn-secondary" onclick="reSearch()">
+                        <i class="bi bi-arrow-clockwise"></i> 再検索
+                    </button>
+                    <button class="btn btn-success" onclick="copyAnswer()">
+                        <i class="bi bi-clipboard"></i> 回答をコピー
+                    </button>
+                    <button class="btn btn-info" onclick="generateEstimate()">
+                        <i class="bi bi-file-earmark-text"></i> 見積書生成
+                    </button>
+                    <button class="btn btn-warning" onclick="showOrderModal()">
+                        <i class="bi bi-file-earmark-check"></i> 発注書生成
+                    </button>
+                </div>
+
+                <!-- 発注書生成モーダル -->
+                <div class="modal fade" id="orderModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">発注書生成</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="orderForm">
+                                    <div class="mb-3">
+                                        <label for="selectedContractor" class="form-label">推奨業者候補から選択</label>
+                                        <select class="form-select" id="selectedContractor" required onchange="onContractorSelected()">
+                                            <option value="">-- 業者を選択してください --</option>
+                                        </select>
+                                        <small class="form-text text-muted">推奨業者候補が表示されます</small>
+                                    </div>
+                                    <div id="contractorDetails" class="mb-3" style="display: none;">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">選択した業者の情報</h6>
+                                                <div id="contractorInfo"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="orderPrice" class="form-label">発注金額（円）</label>
+                                        <input type="number" class="form-control" id="orderPrice" min="0" step="1000" required>
+                                        <small class="form-text text-muted">推奨業者を選択すると、想定価格帯が自動入力されます</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="orderNotes" class="form-label">備考（任意）</label>
+                                        <textarea class="form-control" id="orderNotes" rows="3" placeholder="追加の備考があれば入力してください"></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                                <button type="button" class="btn btn-primary" onclick="generateOrder()">発注書を生成</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Knowledgeファイル内容表示モーダル -->
+    <div class="modal fade" id="knowledgeFileModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="knowledgeFileTitle">Knowledgeファイル内容</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="knowledgeFileLoading" class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">読み込み中...</span>
+                        </div>
+                    </div>
+                    <pre id="knowledgeFileContent" style="white-space: pre-wrap; word-wrap: break-word; display: none;"></pre>
+                    <div id="knowledgeFileError" class="alert alert-danger" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // セッションストレージから結果を取得
+        let ragResult, caseInfo;
+        let hasError = false;
+        try {
+            const ragResultStr = sessionStorage.getItem('ragResult');
+            const caseInfoStr = sessionStorage.getItem('caseInfo');
+            
+            if (!ragResultStr || !caseInfoStr) {
+                throw new Error('結果が見つかりません');
+            }
+            
+            ragResult = JSON.parse(ragResultStr);
+            caseInfo = JSON.parse(caseInfoStr);
+            
+            // 結果がなければトップページにリダイレクト
+            if (!ragResult || !ragResult.success) {
+                throw new Error('無効な結果です');
+            }
+        } catch (error) {
+            console.error('Error loading results:', error);
+            alert('エラー: 結果が見つかりません。トップページに戻ります。');
+            window.location.href = '/';
+            hasError = true;
+        }
+        
+        // グローバル関数を定義（onclick属性から呼び出されるため）
+        // Knowledgeファイルの内容を表示
+        window.viewKnowledgeFile = async function(filename) {
+            const modal = new bootstrap.Modal(document.getElementById('knowledgeFileModal'));
+            const title = document.getElementById('knowledgeFileTitle');
+            const loading = document.getElementById('knowledgeFileLoading');
+            const content = document.getElementById('knowledgeFileContent');
+            const error = document.getElementById('knowledgeFileError');
+            
+            title.textContent = `Knowledgeファイル: ${filename}`;
+            loading.style.display = 'block';
+            content.style.display = 'none';
+            error.style.display = 'none';
+            
+            modal.show();
+            
+            try {
+                const response = await fetch(`/api/knowledge/files/${encodeURIComponent(filename)}`);
+                if (!response.ok) {
+                    throw new Error('ファイルの取得に失敗しました');
+                }
+                const fileData = await response.json();
+                
+                loading.style.display = 'none';
+                content.textContent = fileData.content || 'ファイル内容がありません。';
+                content.style.display = 'block';
+            } catch (err) {
+                loading.style.display = 'none';
+                error.textContent = 'エラー: ' + err.message;
+                error.style.display = 'block';
+            }
+        };
+
+        // 推奨業者候補を抽出
+        let recommendedContractors = [];
+        
+        function extractContractorsFromAnswer(answerText) {
+            const contractors = [];
+            
+            // HTMLタグを除去してテキストのみを取得
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = answerText;
+            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            
+            // 「1. 推奨業者候補」セクションを抽出（HTMLタグ除去後のテキストから）
+            const match = plainText.match(/1\.\s*推奨業者候補([\s\S]*?)(?=2\.|$)/i);
+            if (!match) {
+                // パターン2: 「**推奨業者候補**」の形式
+                const match2 = plainText.match(/推奨業者候補[\s\S]*?([\s\S]*?)(?=想定価格情報|判断理由|リスク|緊急度評価|$)/i);
+                if (!match2) return contractors;
+                var contractorsSection = match2[1];
+            } else {
+                var contractorsSection = match[1];
+            }
+            
+            // 各業者を抽出（「- **業者名」または「業者名:」で始まるブロック）
+            // 業者ブロックの区切りを検出（番号付きリストまたは箇条書き）
+            const contractorPatterns = [
+                /(\d+)\.\s*\*\*([^*]+?)\*\*/g,  // 1. **業者名**
+                /-\s*\*\*([^*]+?)\*\*/g,        // - **業者名**
+                /業者名[：:]\s*([^\n]+)/g,       // 業者名: 名前
+            ];
+            
+            let lastIndex = 0;
+            let contractorBlocks = [];
+            
+            // パターン1: 番号付きリスト
+            let match1;
+            while ((match1 = /(\d+)\.\s*\*\*([^*]+?)\*\*/g.exec(contractorsSection)) !== null) {
+                const startIndex = match1.index;
+                const nextMatch = /(\d+)\.\s*\*\*([^*]+?)\*\*/g.exec(contractorsSection);
+                const endIndex = nextMatch ? nextMatch.index : contractorsSection.length;
+                contractorBlocks.push(contractorsSection.substring(startIndex, endIndex));
+            }
+            
+            // パターン2: 箇条書き
+            if (contractorBlocks.length === 0) {
+                contractorBlocks = contractorsSection.split(/(?=-\s*\*\*)/);
+            }
+            
+            contractorBlocks.forEach(block => {
+                if (!block.trim()) return;
+                
+                // 業者名を抽出（複数のパターンを試す）
+                let name = null;
+                const namePatterns = [
+                    /\*\*([^*]+?)\*\*/,           // **業者名**
+                    /業者名[：:]\s*([^\n]+)/,      // 業者名: 名前
+                    /^[^\n]+?[：:]\s*([^\n]+)/,    // 任意のテキスト: 名前
+                ];
+                
+                for (const pattern of namePatterns) {
+                    const nameMatch = block.match(pattern);
+                    if (nameMatch) {
+                        name = nameMatch[1] ? nameMatch[1].trim() : nameMatch[0].trim();
+                        // HTMLタグや余分な文字を除去
+                        name = name.replace(/<[^>]+>/g, '').replace(/\(参照ファイル[^)]*\)/g, '').trim();
+                        if (name && name.length > 0 && name.length < 100) {
+                            break;
+                        }
+                    }
+                }
+                
+                if (!name || name.length === 0) return;
+                
+                // 選定理由を抽出
+                const reasonMatch = block.match(/選定理由[：:]\s*([^\n]+(?:\n(?!対応可能|想定価格|参照事例)[^\n]+)*)/);
+                let reason = reasonMatch ? reasonMatch[1].trim() : '';
+                reason = reason.replace(/<[^>]+>/g, '').trim();
+                
+                // 対応可能な緊急度を抽出
+                const urgencyMatch = block.match(/対応可能な緊急度[：:]\s*([^\n]+)/);
+                let urgency = urgencyMatch ? urgencyMatch[1].trim() : '';
+                urgency = urgency.replace(/<[^>]+>/g, '').trim();
+                
+                // 想定価格帯を抽出
+                const priceMatch = block.match(/想定価格帯[：:]\s*([^\n]+)/);
+                let priceRange = priceMatch ? priceMatch[1].trim() : '';
+                priceRange = priceRange.replace(/<[^>]+>/g, '').trim();
+                
+                // 価格帯から数値を抽出（例：「9-21万円」→ 90000-210000）
+                let minPrice = null;
+                let maxPrice = null;
+                if (priceRange) {
+                    // 「9-21万円」の形式
+                    const priceNumbers = priceRange.match(/(\d+)[-〜~](\d+)\s*万円/);
+                    if (priceNumbers) {
+                        minPrice = parseInt(priceNumbers[1]) * 10000;
+                        maxPrice = parseInt(priceNumbers[2]) * 10000;
+                    } else {
+                        // 「12-30万円」の形式（スペースなし）
+                        const priceNumbers2 = priceRange.match(/(\d+)[-〜~](\d+)/);
+                        if (priceNumbers2) {
+                            minPrice = parseInt(priceNumbers2[1]) * 10000;
+                            maxPrice = parseInt(priceNumbers2[2]) * 10000;
+                        } else {
+                            // 単一価格
+                            const singlePrice = priceRange.match(/(\d+)/);
+                            if (singlePrice) {
+                                minPrice = parseInt(singlePrice[1]) * 10000;
+                                maxPrice = minPrice;
+                            }
+                        }
+                    }
+                }
+                
+                // 参照事例番号を抽出
+                const caseNumberMatch = block.match(/参照事例番号[：:]\s*([^\n]+)/);
+                let caseNumbers = caseNumberMatch ? caseNumberMatch[1].trim() : '';
+                caseNumbers = caseNumbers.replace(/<[^>]+>/g, '').trim();
+                
+                contractors.push({
+                    name: name,
+                    reason: reason,
+                    urgency: urgency,
+                    priceRange: priceRange,
+                    minPrice: minPrice,
+                    maxPrice: maxPrice,
+                    caseNumbers: caseNumbers
+                });
+            });
+            
+            return contractors;
+        }
+        
+        // 発注書生成モーダルを表示
+        window.showOrderModal = function() {
+            document.getElementById('orderForm').reset();
+            
+            recommendedContractors = [];
+            
+            // 表示されているHTMLから直接業者名を抽出（最も確実な方法）
+            const answerContent = document.getElementById('answerContent');
+            if (answerContent) {
+                // <pre>タグ内のテキストを取得
+                const preElement = answerContent.querySelector('pre');
+                if (preElement) {
+                    const htmlContent = preElement.innerHTML;
+                    const textContent = preElement.textContent || preElement.innerText;
+                    
+                    // 「1. 推奨業者候補」セクションを探す
+                    // より広い範囲を取得するため、複数のパターンを試す
+                    let section = '';
+                    
+                    // パターン1: テキストから「1. 推奨業者候補」から「2.」まで
+                    const sectionMatch1 = textContent.match(/1\.\s*推奨業者候補([\s\S]*?)(?=2\.|想定価格|判断理由|リスク|緊急度評価|$)/i);
+                    if (sectionMatch1) {
+                        section = sectionMatch1[1];
+                    }
+                    
+                    // パターン2: HTMLから直接取得（より確実）
+                    if (!section || section.length < 300) {
+                        console.log('セクションが短いため、HTMLから直接取得を試みます');
+                        // HTMLから「推奨業者候補」セクションを探す（より広い範囲）
+                        const htmlSectionMatch = htmlContent.match(/推奨業者候補([\s\S]*?)(?=想定価格|判断理由|リスク|緊急度評価|<\/pre>|<\/div>|$)/i);
+                        if (htmlSectionMatch) {
+                            const tempDiv2 = document.createElement('div');
+                            tempDiv2.innerHTML = htmlSectionMatch[1];
+                            const htmlSectionText = tempDiv2.textContent || tempDiv2.innerText || '';
+                            if (htmlSectionText.length > section.length) {
+                                section = htmlSectionText;
+                                console.log('HTMLから取得したセクションの長さ:', section.length);
+                            }
+                        }
+                    }
+                    
+                    // パターン3: 全体のテキストから「業者名:」が3回以上出現する部分を取得
+                    if (!section || section.length < 300) {
+                        console.log('セクションがまだ短いため、全体テキストから業者名を含む部分を抽出します');
+                        // 「業者名:」が3回以上出現する部分を探す
+                        const contractorNameMatches = textContent.matchAll(/業者名[：:]/g);
+                        const matches = Array.from(contractorNameMatches);
+                        if (matches.length >= 3) {
+                            // 最初の「業者名:」から最後の「業者名:」の後の一定範囲までを取得
+                            const firstIndex = matches[0].index;
+                            const lastIndex = matches[matches.length - 1].index;
+                            // 最後の「業者名:」の後、500文字まで取得
+                            const endIndex = Math.min(textContent.length, lastIndex + 500);
+                            section = textContent.substring(firstIndex, endIndex);
+                            console.log('全体テキストから抽出したセクションの長さ:', section.length);
+                        }
+                    }
+                    
+                    if (section) {
+                        console.log('最終的なセクション全体の長さ:', section.length);
+                        console.log('セクションの内容（最初の1500文字）:', section.substring(0, 1500));
+                        
+                        // テキストから直接業者名を抽出（最も確実な方法）
+                        const contractorNames = [];
+                        const seenNames = new Set();
+                        
+                        // パターン1: 「1. **会社名**」の形式
+                        const namePattern1 = /(\d+)\.\s*\*\*([^*]+?)\*\*/g;
+                        let match1;
+                        while ((match1 = namePattern1.exec(section)) !== null) {
+                            const name = match1[2].trim();
+                            // 会社名の可能性があるか確認（「業者名」というラベルではない）
+                            if (name && name.length > 5 && name.length < 100 &&
+                                name !== '業者名' && name !== '選定理由' &&
+                                (name.includes('株式会社') || name.includes('有限会社') || 
+                                 name.includes('合同会社') || name.includes('プロ') ||
+                                 name.includes('メンテナンス') || name.includes('タンク') ||
+                                 name.includes('配管') || name.includes('設備') ||
+                                 name.includes('総合')) &&
+                                !seenNames.has(name)) {
+                                contractorNames.push(name);
+                                seenNames.add(name);
+                                console.log('パターン1で抽出された業者名:', name);
+                            }
+                        }
+                        
+                        // パターン2: 「- **会社名**」の形式
+                        if (contractorNames.length === 0) {
+                            const namePattern2 = /-\s*\*\*([^*]+?)\*\*/g;
+                            let match2;
+                            while ((match2 = namePattern2.exec(section)) !== null) {
+                                const name = match2[1].trim();
+                                if (name && name.length > 5 && name.length < 100 &&
+                                    name !== '業者名' && name !== '選定理由' &&
+                                    (name.includes('株式会社') || name.includes('有限会社') || 
+                                     name.includes('合同会社') || name.includes('プロ') ||
+                                     name.includes('メンテナンス') || name.includes('タンク') ||
+                                     name.includes('配管') || name.includes('設備') ||
+                                     name.includes('総合')) &&
+                                    !seenNames.has(name)) {
+                                    contractorNames.push(name);
+                                    seenNames.add(name);
+                                    console.log('パターン2で抽出された業者名:', name);
+                                }
+                            }
+                        }
+                        
+                        // パターン3: 「- 業者名: 会社名」の形式（最も確実なパターン）- すべての業者を抽出
+                        // まずパターン3を試す（「- 業者名:」の形式）- 常に実行してすべての業者を抽出
+                        // 正規表現を修正して、すべてのマッチを取得（「- 業者名:」の後に続く会社名を抽出）
+                        // 「- 業者名: 会社名 - 選定理由」の形式に対応
+                        const namePattern3a = /[-•]\s*業者名[：:]\s*([^\n-]+?)(?:\s*-|\s*選定理由|$)/g;
+                        let match3a;
+                        let matchCount = 0;
+                        while ((match3a = namePattern3a.exec(section)) !== null) {
+                            matchCount++;
+                            let name = match3a[1].trim();
+                            // HTMLタグを除去
+                            name = name.replace(/<[^>]+>/g, '').trim();
+                            // 「-」や「•」で始まる場合は除去
+                            name = name.replace(/^[-•]\s*/, '').trim();
+                            // 「選定理由」などの次の項目までを取得（最初の「-」まで）
+                            const nextDashIndex = name.indexOf(' - ');
+                            if (nextDashIndex !== -1) {
+                                name = name.substring(0, nextDashIndex).trim();
+                            }
+                            // 「選定理由」が含まれている場合はそれより前まで
+                            const reasonIndex = name.indexOf('選定理由');
+                            if (reasonIndex !== -1) {
+                                name = name.substring(0, reasonIndex).trim();
+                            }
+                            
+                            console.log(`マッチ${matchCount}: 抽出前のテキスト = "${match3a[1]}", 抽出後の名前 = "${name}"`);
+                            
+                            if (name && name.length > 5 && name.length < 100 &&
+                                name !== '業者名' &&
+                                (name.includes('株式会社') || name.includes('有限会社') || 
+                                 name.includes('合同会社') || name.includes('プロ') ||
+                                 name.includes('メンテナンス') || name.includes('タンク') ||
+                                 name.includes('配管') || name.includes('設備') ||
+                                 name.includes('総合')) &&
+                                !seenNames.has(name)) {
+                                contractorNames.push(name);
+                                seenNames.add(name);
+                                console.log('パターン3aで抽出された業者名:', name);
+                            }
+                        }
+                        
+                        console.log(`パターン3aで見つかったマッチ数: ${matchCount}, 抽出された業者数: ${contractorNames.length}`);
+                        
+                        // パターン4: 「業者名: 会社名」の形式（「-」なし）- パターン3で見つからなかった場合のみ
+                        // パターン3で見つからなかった場合、または追加で抽出する
+                        if (contractorNames.length === 0 || contractorNames.length < 3) {
+                            const namePattern4 = /業者名[：:]\s*([^\n]+)/g;
+                            let match4;
+                            while ((match4 = namePattern4.exec(section)) !== null) {
+                                let name = match4[1].trim();
+                                // HTMLタグを除去
+                                name = name.replace(/<[^>]+>/g, '').trim();
+                                // 「選定理由」などの次の項目までを取得
+                                const nextDashIndex = name.indexOf(' - ');
+                                if (nextDashIndex !== -1) {
+                                    name = name.substring(0, nextDashIndex).trim();
+                                }
+                                const reasonIndex = name.indexOf('選定理由');
+                                if (reasonIndex !== -1) {
+                                    name = name.substring(0, reasonIndex).trim();
+                                }
+                                
+                                if (name && name.length > 5 && name.length < 100 &&
+                                    name !== '業者名' &&
+                                    (name.includes('株式会社') || name.includes('有限会社') || 
+                                     name.includes('合同会社') || name.includes('プロ') ||
+                                     name.includes('メンテナンス') || name.includes('タンク') ||
+                                     name.includes('配管') || name.includes('設備') ||
+                                     name.includes('総合')) &&
+                                    !seenNames.has(name)) {
+                                    contractorNames.push(name);
+                                    seenNames.add(name);
+                                    console.log('パターン4で抽出された業者名:', name);
+                                }
+                            }
+                        }
+                        
+                        // デバッグ: セクションの内容を確認
+                        if (contractorNames.length === 0) {
+                            console.log('セクションの内容（最初の500文字）:', section.substring(0, 500));
+                        }
+                        
+                        // 業者名ごとに情報を抽出
+                        contractorNames.forEach((name, index) => {
+                            // この業者のブロックを抽出
+                            const nameIndex = section.indexOf(name);
+                            if (nameIndex === -1) return;
+                            
+                            // 次の業者名またはセクション終了までをブロックとして取得
+                            let blockEnd = section.length;
+                            for (let i = index + 1; i < contractorNames.length; i++) {
+                                const nextNameIndex = section.indexOf(contractorNames[i], nameIndex);
+                                if (nextNameIndex !== -1) {
+                                    blockEnd = nextNameIndex;
+                                    break;
+                                }
+                            }
+                            
+                            const block = section.substring(nameIndex, blockEnd);
+                            
+                            // 選定理由を抽出（次の項目まで）
+                            const reasonMatch = block.match(/選定理由[：:]\s*([^\n]+(?:\n(?!-?\s*(?:対応可能|想定価格|参照事例|業者名))[^\n]+)*)/);
+                            let reason = reasonMatch ? reasonMatch[1].trim() : '';
+                            // 「- 対応可能」などの次の項目までを取得
+                            const nextItemIndex = reason.search(/-\s*(?:対応可能|想定価格|参照事例|業者名)/);
+                            if (nextItemIndex !== -1) {
+                                reason = reason.substring(0, nextItemIndex).trim();
+                            }
+                            reason = reason.replace(/\(参照ファイル[^)]*\)/g, '').replace(/\(出典[^)]*\)/g, '').trim();
+                            
+                            // 対応可能な緊急度を抽出（次の項目まで）
+                            const urgencyMatch = block.match(/対応可能な緊急度[：:]\s*([^\n]+(?:\n(?!-?\s*(?:想定価格|参照事例|業者名|選定理由))[^\n]+)*)/);
+                            let urgency = urgencyMatch ? urgencyMatch[1].trim() : '';
+                            // 「- 想定価格」などの次の項目までを取得
+                            const nextItemIndex2 = urgency.search(/-\s*(?:想定価格|参照事例|業者名|選定理由)/);
+                            if (nextItemIndex2 !== -1) {
+                                urgency = urgency.substring(0, nextItemIndex2).trim();
+                            }
+                            urgency = urgency.replace(/\(参照ファイル[^)]*\)/g, '').replace(/\(出典[^)]*\)/g, '').trim();
+                            
+                            // 想定価格帯を抽出（次の項目まで）
+                            const priceMatch = block.match(/想定価格帯[：:]\s*([^\n]+(?:\n(?!-?\s*(?:参照事例|業者名|選定理由|対応可能))[^\n]+)*)/);
+                            let priceRange = priceMatch ? priceMatch[1].trim() : '';
+                            // 「- 参照事例」などの次の項目までを取得
+                            const nextItemIndex3 = priceRange.search(/-\s*(?:参照事例|業者名|選定理由|対応可能)/);
+                            if (nextItemIndex3 !== -1) {
+                                priceRange = priceRange.substring(0, nextItemIndex3).trim();
+                            }
+                            priceRange = priceRange.replace(/\(参照ファイル[^)]*\)/g, '').replace(/\(出典[^)]*\)/g, '').trim();
+                            
+                            // 価格帯から数値を抽出
+                            let minPrice = null;
+                            let maxPrice = null;
+                            if (priceRange) {
+                                const priceNumbers = priceRange.match(/(\d+)[-〜~](\d+)/);
+                                if (priceNumbers) {
+                                    minPrice = parseInt(priceNumbers[1]) * 10000;
+                                    maxPrice = parseInt(priceNumbers[2]) * 10000;
+                                } else {
+                                    const singlePrice = priceRange.match(/(\d+)/);
+                                    if (singlePrice) {
+                                        minPrice = parseInt(singlePrice[1]) * 10000;
+                                        maxPrice = minPrice;
+                                    }
+                                }
+                            }
+                            
+                            // 参照事例番号を抽出（次の項目まで）
+                            const caseNumberMatch = block.match(/参照事例番号[：:]\s*([^\n]+(?:\n(?!-?\s*(?:業者名|選定理由|対応可能|想定価格))[^\n]+)*)/);
+                            let caseNumbers = caseNumberMatch ? caseNumberMatch[1].trim() : '';
+                            // 「- 業者名」などの次の項目までを取得
+                            const nextItemIndex4 = caseNumbers.search(/-\s*(?:業者名|選定理由|対応可能|想定価格)/);
+                            if (nextItemIndex4 !== -1) {
+                                caseNumbers = caseNumbers.substring(0, nextItemIndex4).trim();
+                            }
+                            caseNumbers = caseNumbers.replace(/\(参照ファイル[^)]*\)/g, '').replace(/\(出典[^)]*\)/g, '').trim();
+                            
+                            recommendedContractors.push({
+                                name: name,
+                                reason: reason,
+                                urgency: urgency,
+                                priceRange: priceRange,
+                                minPrice: minPrice,
+                                maxPrice: maxPrice,
+                                caseNumbers: caseNumbers
+                            });
+                        });
+                    }
+                }
+            }
+            
+            // もし抽出できなかった場合、生のテキストからも抽出を試みる
+            if (recommendedContractors.length === 0) {
+                recommendedContractors = extractContractorsFromAnswer(ragResult.answer);
+            }
+            
+            // ドロップダウンに業者を追加
+            const select = document.getElementById('selectedContractor');
+            select.innerHTML = '<option value="">-- 業者を選択してください --</option>';
+            
+            if (recommendedContractors.length === 0) {
+                select.innerHTML += '<option value="">推奨業者候補が見つかりませんでした</option>';
+                console.warn('推奨業者候補が見つかりませんでした。RAG回答:', ragResult.answer.substring(0, 500));
+                console.warn('表示されているHTML:', answerContent ? answerContent.innerHTML.substring(0, 1000) : 'なし');
+            } else {
+                recommendedContractors.forEach((contractor, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = contractor.name;
+                    select.appendChild(option);
+                });
+                console.log('抽出された業者:', recommendedContractors.map(c => c.name));
+            }
+            
+            // 業者詳細を非表示
+            document.getElementById('contractorDetails').style.display = 'none';
+            
+            const modal = new bootstrap.Modal(document.getElementById('orderModal'));
+            modal.show();
+        };
+        
+        // 業者が選択されたときの処理
+        window.onContractorSelected = function() {
+            const select = document.getElementById('selectedContractor');
+            const index = parseInt(select.value);
+            
+            if (isNaN(index) || index < 0 || index >= recommendedContractors.length) {
+                document.getElementById('contractorDetails').style.display = 'none';
+                document.getElementById('orderPrice').value = '';
+                return;
+            }
+            
+            const contractor = recommendedContractors[index];
+            const detailsDiv = document.getElementById('contractorDetails');
+            const infoDiv = document.getElementById('contractorInfo');
+            
+            // 業者情報を表示
+            let infoHtml = `<p><strong>業者名:</strong> ${contractor.name}</p>`;
+            if (contractor.reason) {
+                infoHtml += `<p><strong>選定理由:</strong> ${contractor.reason}</p>`;
+            }
+            if (contractor.urgency) {
+                infoHtml += `<p><strong>対応可能な緊急度:</strong> ${contractor.urgency}</p>`;
+            }
+            if (contractor.priceRange) {
+                infoHtml += `<p><strong>想定価格帯:</strong> ${contractor.priceRange}</p>`;
+            }
+            if (contractor.caseNumbers) {
+                infoHtml += `<p><strong>参照事例番号:</strong> ${contractor.caseNumbers}</p>`;
+            }
+            
+            infoDiv.innerHTML = infoHtml;
+            detailsDiv.style.display = 'block';
+            
+            // 価格を自動入力（中央値または最小値）
+            if (contractor.minPrice !== null) {
+                const suggestedPrice = contractor.maxPrice !== null && contractor.maxPrice !== contractor.minPrice
+                    ? Math.floor((contractor.minPrice + contractor.maxPrice) / 2)
+                    : contractor.minPrice;
+                document.getElementById('orderPrice').value = suggestedPrice;
+            }
+        };
+
+        // 発注書を生成
+        window.generateOrder = async function() {
+            // セッションストレージからデータを取得
+            let caseInfo, ragResult;
+            try {
+                const caseInfoStr = sessionStorage.getItem('caseInfo');
+                const ragResultStr = sessionStorage.getItem('ragResult');
+                if (!caseInfoStr || !ragResultStr) {
+                    throw new Error('案件情報が見つかりません');
+                }
+                caseInfo = JSON.parse(caseInfoStr);
+                ragResult = JSON.parse(ragResultStr);
+            } catch (error) {
+                alert('エラー: ' + error.message);
+                return;
+            }
+
+            const contractorIndex = document.getElementById('selectedContractor').value;
+            const price = parseFloat(document.getElementById('orderPrice').value);
+            const notes = document.getElementById('orderNotes').value || '';
+
+            if (!contractorIndex || contractorIndex === '' || !price) {
+                alert('業者と金額を入力してください');
+                return;
+            }
+
+            // インデックスから業者名を取得
+            const index = parseInt(contractorIndex);
+            if (isNaN(index) || index < 0 || index >= recommendedContractors.length) {
+                alert('有効な業者を選択してください');
+                return;
+            }
+
+            const selectedContractor = recommendedContractors[index];
+
+            try {
+                const response = await fetch('/api/documents/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        case_info: caseInfo,
+                        rag_answer: ragResult.answer,
+                        selected_contractor: selectedContractor.name,
+                        price: price,
+                        contractor_info: {
+                            reason: selectedContractor.reason,
+                            urgency: selectedContractor.urgency,
+                            price_range: selectedContractor.priceRange,
+                            case_numbers: selectedContractor.caseNumbers
+                        },
+                        notes: notes
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('発注書の生成に失敗しました');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // ファイル名をASCII文字のみに変換
+                const safeName = (caseInfo.case_name || 'case').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
+                a.download = `order_${safeName}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('orderModal'));
+                modal.hide();
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        };
+
+        // 再検索関数
+        window.reSearch = function() {
+            // セッションストレージから案件情報を取得
+            let caseInfo;
+            try {
+                const caseInfoStr = sessionStorage.getItem('caseInfo');
+                if (!caseInfoStr) {
+                    throw new Error('案件情報が見つかりません');
+                }
+                caseInfo = JSON.parse(caseInfoStr);
+            } catch (error) {
+                alert('エラー: ' + error.message);
+                return;
+            }
+
+            const query = `${caseInfo.repair_type}の修理について、${caseInfo.urgency}の案件です。${caseInfo.description || ''}`;
+            
+            fetch('/api/rag/answer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: query,
+                    case_info: caseInfo,
+                    top_k: 20,  // より多くの検索結果を取得
+                }),
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    sessionStorage.setItem('ragResult', JSON.stringify(result));
+                    location.reload();
+                } else {
+                    alert('再検索に失敗しました: ' + (result.message || 'エラーが発生しました'));
+                }
+            })
+            .catch(error => {
+                alert('再検索に失敗しました: ' + error.message);
+            });
+        };
+
+        // 回答をコピー
+        window.copyAnswer = function() {
+            let ragResult;
+            try {
+                const ragResultStr = sessionStorage.getItem('ragResult');
+                if (!ragResultStr) {
+                    throw new Error('回答が見つかりません');
+                }
+                ragResult = JSON.parse(ragResultStr);
+            } catch (error) {
+                alert('エラー: ' + error.message);
+                return;
+            }
+
+            const text = ragResult.answer + '\n\n' + ragResult.reasoning;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('回答をクリップボードにコピーしました');
+            }).catch(err => {
+                alert('コピーに失敗しました: ' + err);
+            });
+        };
+
+        // 見積書を生成
+        window.generateEstimate = async function() {
+            // セッションストレージからデータを取得
+            let caseInfo, ragResult;
+            try {
+                const caseInfoStr = sessionStorage.getItem('caseInfo');
+                const ragResultStr = sessionStorage.getItem('ragResult');
+                if (!caseInfoStr || !ragResultStr) {
+                    throw new Error('案件情報が見つかりません');
+                }
+                caseInfo = JSON.parse(caseInfoStr);
+                ragResult = JSON.parse(ragResultStr);
+            } catch (error) {
+                alert('エラー: ' + error.message);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/documents/estimate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        case_info: caseInfo,
+                        rag_answer: ragResult.answer,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('見積書の生成に失敗しました');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // ファイル名をASCII文字のみに変換
+                const safeName = (caseInfo.case_name || 'case').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
+                a.download = `estimate_${safeName}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        };
+
+        // エラーが発生した場合は処理を停止
+        if (hasError) {
+            // リダイレクト待ちのため、何もしない
+        } else {
+
+        // 案件情報を表示
+        const caseInfoDiv = document.getElementById('caseInfo');
+        caseInfoDiv.innerHTML = `
+            <div class="case-info-item"><strong>案件名:</strong> ${caseInfo.case_name || '未設定'}</div>
+            <div class="case-info-item"><strong>修理種別:</strong> ${caseInfo.repair_type || '未設定'}</div>
+            <div class="case-info-item"><strong>緊急度:</strong> <span class="badge bg-${caseInfo.urgency === '緊急' ? 'danger' : caseInfo.urgency === '通常' ? 'warning' : 'info'}">${caseInfo.urgency || '未設定'}</span></div>
+            <div class="case-info-item"><strong>場所:</strong> ${caseInfo.location || '未設定'}</div>
+            <div class="case-info-item"><strong>貯水槽規模:</strong> ${caseInfo.tank_size || '未設定'}</div>
+            ${caseInfo.description ? `<div class="case-info-item mt-3"><strong>詳細:</strong><br>${caseInfo.description}</div>` : ''}
+        `;
+
+        // 回答を表示（業者名の出典ファイル名をクリック可能にする）
+        const answerContent = document.getElementById('answerContent');
+        let answerText = ragResult.answer || '回答が生成されませんでした。';
+        
+        // ファイル名をクリック可能なバッジに変換
+        if (ragResult.referenced_files && ragResult.referenced_files.length > 0) {
+            ragResult.referenced_files.forEach(file => {
+                // 「出典: ファイル名.txt」の形式を検出して置き換え
+                const escapedFile = file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                // 「出典: ファイル名」のパターンを検出
+                const patterns = [
+                    new RegExp(`出典[:：]\\s*${escapedFile}`, 'g'),
+                    new RegExp(`\\(出典[:：]\\s*${escapedFile}\\)`, 'g'),
+                    new RegExp(`出典[:：]\\s*${escapedFile}(?:\\s*[,、])?`, 'g'),
+                ];
+                
+                const badge = `<span class="file-link" onclick="viewKnowledgeFile('${file.replace(/'/g, "\\'")}')" title="クリックでファイル内容を確認">${file}</span>`;
+                
+                patterns.forEach(pattern => {
+                    answerText = answerText.replace(pattern, (match) => {
+                        // 「出典:」の部分を保持してファイル名だけをバッジに置き換え
+                        return match.replace(escapedFile, badge);
+                    });
+                });
+                
+                // ファイル名単独も置き換え（業者名の後のファイル名など）
+                answerText = answerText.replace(
+                    new RegExp(`\\b${escapedFile}\\b`, 'g'),
+                    (match, offset, string) => {
+                        // 既にバッジに置き換えられている場合はスキップ
+                        if (string.substring(Math.max(0, offset - 50), offset + match.length + 50).includes('file-badge')) {
+                            return match;
+                        }
+                        // 「出典:」の前後にある場合は置き換えない（既に処理済み）
+                        const before = string.substring(Math.max(0, offset - 20), offset);
+                        const after = string.substring(offset + match.length, Math.min(string.length, offset + match.length + 20));
+                        if (before.includes('出典') || after.includes('出典')) {
+                            return match;
+                        }
+                        return badge;
+                    }
+                );
+            });
+        }
+        
+        // シンプルで見やすい表示に変換
+        let formattedAnswer = answerText;
+        
+        // 「参照ファイル:」の行を削除（RAG回答セクションから参照ファイル情報を削除）
+        formattedAnswer = formattedAnswer.replace(/参照ファイル[:：].*$/gm, '');
+        formattedAnswer = formattedAnswer.replace(/（参照ファイル[:：][^）]*）/g, '');
+        formattedAnswer = formattedAnswer.replace(/\(参照ファイル[:：][^)]*\)/g, '');
+        
+        // 残っている括弧を削除（より徹底的に）
+        // 行末の「（」を削除
+        formattedAnswer = formattedAnswer.replace(/（[\s]*$/gm, '');
+        formattedAnswer = formattedAnswer.replace(/\([\s]*$/gm, '');
+        // 行頭の「）」を削除
+        formattedAnswer = formattedAnswer.replace(/^[\s]*）/gm, '');
+        formattedAnswer = formattedAnswer.replace(/^[\s]*\)/gm, '');
+        // 単独の「（」や「）」の行を削除
+        formattedAnswer = formattedAnswer.replace(/^[\s]*（[\s]*$/gm, '');
+        formattedAnswer = formattedAnswer.replace(/^[\s]*）[\s]*$/gm, '');
+        formattedAnswer = formattedAnswer.replace(/^[\s]*\([\s]*$/gm, '');
+        formattedAnswer = formattedAnswer.replace(/^[\s]*\)[\s]*$/gm, '');
+        // 空の括弧を削除
+        formattedAnswer = formattedAnswer.replace(/（[\s]*）/g, '');
+        formattedAnswer = formattedAnswer.replace(/\([\s]*\)/g, '');
+        // テキスト内の残っている括弧パターンを削除
+        formattedAnswer = formattedAnswer.replace(/（[\s]*[^）]*）/g, (match) => {
+            // ファイル名が含まれていない括弧のみ削除
+            if (!match.match(/\.txt/)) {
+                return match.replace(/[（）]/g, '').trim();
+            }
+            return match;
+        });
+        formattedAnswer = formattedAnswer.replace(/\([\s]*[^)]*\)/g, (match) => {
+            // ファイル名が含まれていない括弧のみ削除
+            if (!match.match(/\.txt/)) {
+                return match.replace(/[()]/g, '').trim();
+            }
+            return match;
+        });
+        
+        // 空行を削除
+        formattedAnswer = formattedAnswer.replace(/\n\n\n+/g, '\n\n');
+        formattedAnswer = formattedAnswer.trim();
+        
+        // 太字をHTMLに変換
+        formattedAnswer = formattedAnswer.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+        
+        // 事例番号を強調表示（HTMLタグが追加される前に処理）
+        // 様々な形式の事例番号パターンを検出
+        const caseNumberPatterns = [
+            /(事例[No\.\s]*[#\s]*\d+)/gi,
+            /(ケース[#\s]*\d+)/gi,
+            /(事例番号[#\s]*\d+)/gi,
+            /(Case[#\s]*\d+)/gi,
+            /(CASE[#\s]*\d+)/gi,
+        ];
+        
+        caseNumberPatterns.forEach(pattern => {
+            formattedAnswer = formattedAnswer.replace(pattern, (match) => {
+                // 既に強調表示されている場合はスキップ
+                if (match.includes('<span') || match.includes('case-number')) {
+                    return match;
+                }
+                return `<span class="case-number">${match}</span>`;
+            });
+        });
+        
+        // 改行を保持
+        formattedAnswer = formattedAnswer.replace(/\n/g, '<br>');
+        
+        answerContent.innerHTML = `<div class="answer-content"><pre>${formattedAnswer}</pre></div>`;
+
+        // 判断理由を表示（ファイル名をクリック可能にする）
+        const reasoning = document.getElementById('reasoning');
+        let reasoningText = ragResult.reasoning || '判断理由がありません。';
+        
+        // 判断理由テキスト内のすべての.txtファイル名を検出してクリック可能にする
+        // ファイル名のパターン: 英数字、アンダースコア、ハイフンを含む.txtで終わる文字列
+        const fileNamePattern = /([a-zA-Z0-9_\-]+\.txt)/g;
+        const foundFiles = new Set();
+        let match;
+        
+        // テキスト内のすべてのファイル名を検出
+        while ((match = fileNamePattern.exec(reasoningText)) !== null) {
+            foundFiles.add(match[1]);
+        }
+        
+        // referenced_filesにも含まれるファイル名を追加
+        if (ragResult.referenced_files && ragResult.referenced_files.length > 0) {
+            ragResult.referenced_files.forEach(file => foundFiles.add(file));
+        }
+        
+        // 検出したすべてのファイル名をクリック可能なリンクに置き換え
+        foundFiles.forEach(file => {
+            const escapedFile = file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const badge = `<span class="file-link" onclick="viewKnowledgeFile('${file.replace(/'/g, "\\'")}')" title="クリックでファイル内容を確認">${file}</span>`;
+            
+            // ファイル名をリンクに置き換え（既にリンクに置き換えられていない場合のみ）
+            reasoningText = reasoningText.replace(
+                new RegExp(`\\b${escapedFile}\\b`, 'g'),
+                (match, offset, string) => {
+                    // 既にリンクに置き換えられている場合はスキップ
+                    const before = string.substring(Math.max(0, offset - 100), offset);
+                    const after = string.substring(offset + match.length, Math.min(string.length, offset + match.length + 100));
+                    if (before.includes('file-link') || after.includes('file-link')) {
+                        return match;
+                    }
+                    return badge;
+                }
+            );
+        });
+        
+        // 判断理由テキスト内の事例番号を強調表示
+        // ファイル名リンクの処理の後に実行（HTMLタグが含まれている可能性があるため、より慎重に）
+        const reasoningCaseNumberPatterns = [
+            /(事例[No\.\s]*[#\s]*\d+)/gi,
+            /(ケース[#\s]*\d+)/gi,
+            /(事例番号[#\s]*\d+)/gi,
+            /(Case[#\s]*\d+)/gi,
+            /(CASE[#\s]*\d+)/gi,
+        ];
+        
+        reasoningCaseNumberPatterns.forEach(pattern => {
+            reasoningText = reasoningText.replace(pattern, (match) => {
+                // 既に強調表示されている場合やHTMLタグ内の場合はスキップ
+                if (match.includes('<span') || match.includes('case-number') || match.includes('file-link')) {
+                    return match;
+                }
+                return `<span class="case-number">${match}</span>`;
+            });
+        });
+        
+        reasoning.innerHTML = `<p style="line-height: 1.8; font-size: 1rem;">${reasoningText}</p>`;
+
+        // 参照ファイル名を表示（クリック可能にする）
+        const referencedFiles = document.getElementById('referencedFiles');
+        if (ragResult.referenced_files && ragResult.referenced_files.length > 0) {
+            referencedFiles.innerHTML = ragResult.referenced_files.map(file => 
+                `<span class="file-link" onclick="viewKnowledgeFile('${file.replace(/'/g, "\\'")}')" title="クリックでファイル内容を確認">${file}</span>`
+            ).join(' ');
+        } else {
+            referencedFiles.innerHTML = '<span class="text-muted"><i class="bi bi-info-circle"></i> 参照ファイルがありません。</span>';
+        }
+
+        // 検索結果（参照チャンク）を表示
+        const searchResultsSection = document.getElementById('searchResultsSection');
+        const searchResults = document.getElementById('searchResults');
+        const searchResultsCount = document.getElementById('searchResultsCount');
+        const searchResultsToggleButton = document.getElementById('searchResultsToggleButton');
+        
+        if (ragResult.search_results && ragResult.search_results.length > 0) {
+            searchResultsCount.textContent = `${ragResult.search_results.length}件`;
+            // 初期状態は非表示
+            searchResultsSection.style.display = 'none';
+            searchResultsToggleButton.style.display = 'block';
+            searchResults.innerHTML = ragResult.search_results.map((result, index) => {
+                const fileName = result.file_name || '不明';
+                const fileLink = `<span class="file-link" onclick="viewKnowledgeFile('${fileName.replace(/'/g, "\\'")}')" title="クリックでファイル内容を確認">${fileName}</span>`;
+                const score = result.score !== undefined ? `スコア: ${result.score.toFixed(4)}` : '';
+                const chunkIndex = result.chunk_index !== undefined ? result.chunk_index : '-';
+                
+                // チャンクの内容を取得
+                let textContent = result.text || result.text_preview || '';
+                
+                // HTMLエスケープ
+                const escapedText = textContent
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+                
+                return `
+                    <div class="mb-2" style="padding: 0.5rem; border-bottom: 1px solid #dee2e6;">
+                        <div>
+                            <strong>#${index + 1}</strong> ${fileLink} ${score ? `<span class="text-muted ms-2">${score}</span>` : ''}
+                        </div>
+                        <div class="text-muted small mt-1">
+                            | チャンク番号: ${chunkIndex}
+                        </div>
+                        <div style="white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem; background-color: #f8f9fa; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; line-height: 1.6; max-height: 300px; overflow-y: auto;">${escapedText}</div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            searchResultsSection.style.display = 'none';
+        }
+
+        // 検索結果を表示
+        window.showSearchResults = function() {
+            const searchResultsSection = document.getElementById('searchResultsSection');
+            const searchResultsToggleButton = document.getElementById('searchResultsToggleButton');
+            searchResultsSection.style.display = 'block';
+            searchResultsToggleButton.style.display = 'none';
+        };
+        
+        // 検索結果を閉じる
+        window.closeSearchResults = function() {
+            const searchResultsSection = document.getElementById('searchResultsSection');
+            const searchResultsToggleButton = document.getElementById('searchResultsToggleButton');
+            searchResultsSection.style.display = 'none';
+            searchResultsToggleButton.style.display = 'block';
+        };
+
+
+        } // elseブロックの終了
+    </script>
+</body>
+</html>
+

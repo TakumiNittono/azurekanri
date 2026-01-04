@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理者画面 - 貯水槽修理案件管理システム</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .nav-link {
+            color: #333;
+        }
+        .nav-link.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .content-area {
+            padding: 2rem;
+        }
+        .file-list-item {
+            cursor: pointer;
+        }
+        .file-list-item:hover {
+            background-color: #f8f9fa;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                min-height: auto;
+            }
+            .content-area {
+                padding: 1rem;
+            }
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- サイドバー -->
+            <nav class="col-md-3 col-lg-2 sidebar p-3">
+                <h5 class="mb-4">
+                    <i class="bi bi-shield-check"></i> 管理者メニュー
+                </h5>
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" onclick="showKnowledgeManagement(); return false;">
+                            <i class="bi bi-files"></i> Knowledge管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showReindex(); return false;">
+                            <i class="bi bi-arrow-clockwise"></i> Index再構築
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showLogs(); return false;">
+                            <i class="bi bi-journal-text"></i> ログ閲覧
+                        </a>
+                    </li>
+                    <li class="nav-item mt-3">
+                        <a class="nav-link" href="/" onclick="logout(); return false;">
+                            <i class="bi bi-box-arrow-right"></i> ログアウト
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- メインコンテンツ -->
+            <main class="col-md-9 col-lg-10 content-area">
+                <!-- Knowledge管理画面 -->
+                <div id="knowledgeManagement">
+                    <h2 class="mb-4"><i class="bi bi-files"></i> Knowledge管理</h2>
+                    
+                    <div class="d-flex justify-content-between mb-3">
+                        <div>
+                            <input type="text" class="form-control" id="searchInput" placeholder="ファイル名で検索..." onkeyup="filterFiles()">
+                        </div>
+                        <button class="btn btn-primary" onclick="showAddFileModal()">
+                            <i class="bi bi-plus-circle"></i> 新規ファイル追加
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ファイル名</th>
+                                    <th>種別</th>
+                                    <th>サイズ</th>
+                                    <th>最終更新</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fileList">
+                                <!-- ファイル一覧がここに表示されます -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Index再構築画面 -->
+                <div id="reindexView" style="display: none;">
+                    <h2 class="mb-4"><i class="bi bi-arrow-clockwise"></i> Index再構築</h2>
+                    
+                    <div class="card">
+                        <div class="card-body">
+                            <p>Knowledgeファイルを更新した後、RAG Indexを再構築してください。</p>
+                            <p class="text-muted">再構築には時間がかかる場合があります。</p>
+                            
+                            <div id="reindexStatus" class="mt-3"></div>
+                            
+                            <button class="btn btn-primary mt-3" onclick="reindex()" id="reindexBtn">
+                                <i class="bi bi-arrow-clockwise"></i> Indexを再構築
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ログ閲覧画面 -->
+                <div id="logsView" style="display: none;">
+                    <h2 class="mb-4"><i class="bi bi-journal-text"></i> ログ閲覧</h2>
+                    
+                    <!-- フィルタ -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label class="form-label">開始日</label>
+                                    <input type="date" class="form-control" id="startDate">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">終了日</label>
+                                    <input type="date" class="form-control" id="endDate">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">案件ID</label>
+                                    <input type="text" class="form-control" id="filterCaseId" placeholder="案件IDで検索">
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button class="btn btn-primary w-100" onclick="loadLogs()">
+                                        <i class="bi bi-search"></i> 検索
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ログ一覧 -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>日時</th>
+                                <th>案件ID</th>
+                                <th>ステータス</th>
+                                <th>参照ファイル数</th>
+                                <th>処理時間</th>
+                                <th>モデル</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                            <tbody id="logList">
+                                <!-- ログ一覧がここに表示されます -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ログ詳細モーダル -->
+                <div class="modal fade" id="logDetailModal" tabindex="-1">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">ログ詳細</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="logDetailContent">
+                                    <!-- ログ詳細がここに表示されます -->
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ファイル追加モーダル -->
+    <div class="modal fade" id="addFileModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">新規ファイル追加</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addFileForm">
+                        <div class="mb-3">
+                            <label for="newFileName" class="form-label">ファイル名</label>
+                            <input type="text" class="form-control" id="newFileName" name="filename" placeholder="例: new_knowledge.txt" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newFileContent" class="form-label">ファイル内容</label>
+                            <textarea class="form-control" id="newFileContent" name="content" rows="15" required></textarea>
+                        </div>
+                        <div class="alert alert-danger" id="addFileError" style="display: none;"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="button" class="btn btn-primary" onclick="createFile()">作成</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ファイル内容表示モーダル -->
+    <div class="modal fade" id="fileContentModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="fileContentTitle">ファイル内容</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="fileContentText" style="white-space: pre-wrap; word-wrap: break-word;"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="deleteFileBtn" onclick="deleteFile()">削除</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentFiles = [];
+        let currentFileName = '';
+
+        // ページ読み込み時にファイル一覧を取得
+        window.addEventListener('load', async () => {
+            await checkAuth();
+            await loadFiles();
+        });
+
+        // 認証確認
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/admin/check');
+                const result = await response.json();
+                if (!result.authenticated) {
+                    window.location.href = '/admin/login';
+                }
+            } catch (error) {
+                window.location.href = '/admin/login';
+            }
+        }
+
+        // ファイル一覧を読み込む
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/admin/knowledge/files');
+                if (!response.ok) {
+                    throw new Error('ファイル一覧の取得に失敗しました');
+                }
+                currentFiles = await response.json();
+                displayFiles(currentFiles);
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        }
+
+        // ファイル一覧を表示
+        function displayFiles(files) {
+            const tbody = document.getElementById('fileList');
+            tbody.innerHTML = '';
+            
+            files.forEach(file => {
+                const row = document.createElement('tr');
+                row.className = 'file-list-item';
+                row.onclick = () => viewFile(file.filename);
+                
+                const sizeKB = (file.size / 1024).toFixed(2);
+                const date = new Date(file.updated_at * 1000).toLocaleString('ja-JP');
+                
+                row.innerHTML = `
+                    <td>${file.filename}</td>
+                    <td><span class="badge bg-secondary">${file.file_type}</span></td>
+                    <td>${sizeKB} KB</td>
+                    <td>${date}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); viewFile('${file.filename}')">
+                            <i class="bi bi-eye"></i> 閲覧
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); confirmDelete('${file.filename}')">
+                            <i class="bi bi-trash"></i> 削除
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // ファイル検索フィルタ
+        function filterFiles() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = currentFiles.filter(file => 
+                file.filename.toLowerCase().includes(searchTerm)
+            );
+            displayFiles(filtered);
+        }
+
+        // ファイル内容を表示
+        async function viewFile(filename) {
+            try {
+                const response = await fetch(`/api/admin/knowledge/files/${encodeURIComponent(filename)}`);
+                if (!response.ok) {
+                    throw new Error('ファイルの取得に失敗しました');
+                }
+                const fileData = await response.json();
+                
+                document.getElementById('fileContentTitle').textContent = fileData.filename;
+                document.getElementById('fileContentText').textContent = fileData.content;
+                document.getElementById('deleteFileBtn').setAttribute('data-filename', fileData.filename);
+                currentFileName = fileData.filename;
+                
+                const modal = new bootstrap.Modal(document.getElementById('fileContentModal'));
+                modal.show();
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        }
+
+        // ファイル追加モーダルを表示
+        function showAddFileModal() {
+            document.getElementById('addFileForm').reset();
+            document.getElementById('addFileError').style.display = 'none';
+            const modal = new bootstrap.Modal(document.getElementById('addFileModal'));
+            modal.show();
+        }
+
+        // ファイルを作成
+        async function createFile() {
+            const form = document.getElementById('addFileForm');
+            const formData = new FormData(form);
+            const filename = formData.get('filename');
+            const content = formData.get('content');
+
+            if (!filename || !content) {
+                document.getElementById('addFileError').textContent = 'ファイル名と内容は必須です';
+                document.getElementById('addFileError').style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/knowledge/files', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filename: filename,
+                        content: content,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'ファイルの作成に失敗しました');
+                }
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addFileModal'));
+                modal.hide();
+                await loadFiles();
+                alert('ファイルを作成しました');
+            } catch (error) {
+                document.getElementById('addFileError').textContent = 'エラー: ' + error.message;
+                document.getElementById('addFileError').style.display = 'block';
+            }
+        }
+
+        // 削除確認
+        function confirmDelete(filename) {
+            if (confirm(`ファイル「${filename}」を削除しますか？\n\nこの操作は取り消せません。`)) {
+                deleteFile(filename);
+            }
+        }
+
+        // ファイルを削除
+        async function deleteFile(filename) {
+            const targetFilename = filename || currentFileName;
+            
+            try {
+                const response = await fetch(`/api/admin/knowledge/files/${encodeURIComponent(targetFilename)}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'ファイルの削除に失敗しました');
+                }
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('fileContentModal'));
+                if (modal) modal.hide();
+                
+                await loadFiles();
+                alert('ファイルを削除しました');
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        }
+
+        // メニュー切り替え
+        function showKnowledgeManagement() {
+            document.getElementById('knowledgeManagement').style.display = 'block';
+            document.getElementById('reindexView').style.display = 'none';
+            document.getElementById('logsView').style.display = 'none';
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            event.target.closest('.nav-link').classList.add('active');
+        }
+
+        function showReindex() {
+            document.getElementById('knowledgeManagement').style.display = 'none';
+            document.getElementById('reindexView').style.display = 'block';
+            document.getElementById('logsView').style.display = 'none';
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            event.target.closest('.nav-link').classList.add('active');
+        }
+
+        function showLogs() {
+            document.getElementById('knowledgeManagement').style.display = 'none';
+            document.getElementById('reindexView').style.display = 'none';
+            document.getElementById('logsView').style.display = 'block';
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            event.target.closest('.nav-link').classList.add('active');
+            loadLogs();
+        }
+
+        // ログ一覧を読み込む
+        async function loadLogs() {
+            try {
+                const params = new URLSearchParams();
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                const caseId = document.getElementById('filterCaseId').value;
+
+                if (startDate) params.append('start_date', startDate);
+                if (endDate) params.append('end_date', endDate);
+                if (caseId) params.append('case_id', caseId);
+                params.append('limit', '100');
+
+                const response = await fetch(`/api/admin/logs?${params.toString()}`);
+                if (!response.ok) {
+                    throw new Error('ログ一覧の取得に失敗しました');
+                }
+                const logs = await response.json();
+                displayLogs(logs);
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        }
+
+        // ログ一覧を表示
+        function displayLogs(logs) {
+            const tbody = document.getElementById('logList');
+            tbody.innerHTML = '';
+            
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">ログがありません</td></tr>';
+                return;
+            }
+
+            logs.forEach(log => {
+                const row = document.createElement('tr');
+                const date = new Date(log.timestamp).toLocaleString('ja-JP');
+                const processingTime = log.processing_time ? `${log.processing_time.toFixed(2)}秒` : '-';
+                const statusBadge = log.status === 'success' 
+                    ? '<span class="badge bg-success">成功</span>' 
+                    : '<span class="badge bg-danger">失敗</span>';
+                
+                row.innerHTML = `
+                    <td>${log.id}</td>
+                    <td>${date}</td>
+                    <td>${log.case_id || '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${log.referenced_files_count}</td>
+                    <td>${processingTime}</td>
+                    <td>${log.model_name || '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="viewLogDetail(${log.id})">
+                            <i class="bi bi-eye"></i> 詳細
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // ログ詳細を表示
+        async function viewLogDetail(logId) {
+            try {
+                const response = await fetch(`/api/admin/logs/${logId}`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'ログ詳細の取得に失敗しました' }));
+                    throw new Error(errorData.detail || 'ログ詳細の取得に失敗しました');
+                }
+                const log = await response.json();
+                
+                const content = document.getElementById('logDetailContent');
+                const statusBadge = log.status === 'success' 
+                    ? '<span class="badge bg-success">成功</span>' 
+                    : '<span class="badge bg-danger">失敗</span>';
+                
+                content.innerHTML = `
+                    <div class="mb-3">
+                        <strong>ID:</strong> ${log.id}<br>
+                        <strong>日時:</strong> ${new Date(log.timestamp).toLocaleString('ja-JP')}<br>
+                        <strong>ステータス:</strong> ${statusBadge}<br>
+                        ${log.error_message ? `<strong>エラーメッセージ:</strong> <span class="text-danger">${log.error_message}</span><br>` : ''}
+                        <strong>ユーザーID:</strong> ${log.user_id || '-'}<br>
+                        <strong>案件ID:</strong> ${log.case_id || '-'}<br>
+                        <strong>処理時間:</strong> ${log.processing_time ? log.processing_time.toFixed(2) + '秒' : '-'}<br>
+                        <strong>モデル:</strong> ${log.model_name || '-'}<br>
+                        <strong>検索結果数 (top_k):</strong> ${log.top_k || '-'}
+                    </div>
+                    
+                    ${log.input_data ? `
+                    <div class="mb-3">
+                        <strong>入力データ（案件情報）:</strong>
+                        <pre class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;">${JSON.stringify(log.input_data, null, 2)}</pre>
+                    </div>
+                    ` : ''}
+                    
+                    ${log.rag_queries && log.rag_queries.length > 0 ? `
+                    <div class="mb-3">
+                        <strong>RAG検索クエリ:</strong>
+                        <ul>
+                            ${log.rag_queries.map(q => `<li><code>${q}</code></li>`).join('')}
+                        </ul>
+                    </div>
+                    ` : ''}
+                    
+                    ${log.search_results && log.search_results.length > 0 ? `
+                    <div class="mb-3">
+                        <strong>検索結果の詳細:</strong>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>チャンクID</th>
+                                        <th>ファイル名</th>
+                                        <th>ファイルタイプ</th>
+                                        <th>チャンク番号</th>
+                                        <th>スコア</th>
+                                        <th>テキストプレビュー</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${log.search_results.map(sr => `
+                                        <tr>
+                                            <td><code style="font-size: 0.8em;">${sr.chunk_id || '-'}</code></td>
+                                            <td>${sr.file_name || '-'}</td>
+                                            <td><span class="badge bg-secondary">${sr.file_type || '-'}</span></td>
+                                            <td>${sr.chunk_index !== null && sr.chunk_index !== undefined ? sr.chunk_index : '-'}</td>
+                                            <td>${sr.score ? sr.score.toFixed(4) : '-'}</td>
+                                            <td style="max-width: 300px;"><small>${sr.text_preview || '-'}</small></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${log.referenced_files && log.referenced_files.length > 0 ? `
+                    <div class="mb-3">
+                        <strong>参照ファイル:</strong>
+                        <div>
+                            ${log.referenced_files.map(f => `<span class="badge bg-secondary me-1">${f}</span>`).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${log.reasoning ? `
+                    <div class="mb-3">
+                        <strong>判断理由:</strong>
+                        <pre class="bg-light p-2 rounded" style="white-space: pre-wrap; word-wrap: break-word;">${log.reasoning}</pre>
+                    </div>
+                    ` : ''}
+                    
+                    ${log.generated_answer ? `
+                    <div class="mb-3">
+                        <strong>生成された回答:</strong>
+                        <pre class="bg-light p-2 rounded" style="white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto;">${log.generated_answer}</pre>
+                    </div>
+                    ` : ''}
+                `;
+                
+                const modal = new bootstrap.Modal(document.getElementById('logDetailModal'));
+                modal.show();
+            } catch (error) {
+                alert('エラー: ' + error.message);
+                console.error('Log detail error:', error);
+            }
+        }
+
+        // Index再構築
+        async function reindex() {
+            const btn = document.getElementById('reindexBtn');
+            const status = document.getElementById('reindexStatus');
+            
+            if (!confirm('Indexを再構築しますか？\n\nこの処理には時間がかかる場合があります。')) {
+                return;
+            }
+
+            btn.disabled = true;
+            status.innerHTML = '<div class="spinner-border text-primary" role="status"></div> <span>再構築中...</span>';
+
+            try {
+                const response = await fetch('/api/rag/index/reindex', {
+                    method: 'POST',
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '再構築に失敗しました');
+                }
+
+                const result = await response.json();
+                status.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>成功！</strong><br>
+                        インデックス化したファイル数: ${result.indexed_files}<br>
+                        総chunk数: ${result.total_chunks}
+                    </div>
+                `;
+            } catch (error) {
+                status.innerHTML = `<div class="alert alert-danger">エラー: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // ログアウト
+        async function logout() {
+            try {
+                await fetch('/api/admin/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+
