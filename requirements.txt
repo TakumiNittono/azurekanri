@@ -30,7 +30,7 @@ reportlab==4.0.7
 python-docx==1.1.0
 
 # Azure関連（Azure移行時に追加）
-# azure-functions>=1.18.0  # Azure Functions用（Functionsアプリにデプロイする場合）
+azure-functions>=1.18.0  # Azure Functions用
 azure-storage-blob>=12.19.0  # Blob Storage用
 azure-data-tables>=12.4.0  # Table Storage用
 azure-identity>=1.15.0  # Managed Identity認証用
