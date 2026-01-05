@@ -1,21 +1,23 @@
-import json
 import azure.functions as func
+import json
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
-        body = req.get_json()
-        query = body.get("query", "")
+        data = req.get_json()
+        query = data.get("query", "")
 
         return func.HttpResponse(
             json.dumps({
-                "answer": f"あなたの質問は『{query}』ですね（仮回答）",
-                "sources": []
+                "query": query,
+                "result": "dummy search result"
             }),
             mimetype="application/json",
             status_code=200
         )
+
     except Exception as e:
         return func.HttpResponse(
             json.dumps({"error": str(e)}),
-            status_code=500
+            mimetype="application/json",
+            status_code=400
         )
