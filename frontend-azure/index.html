@@ -1,262 +1,209 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>貯水槽修理案件管理システム</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        .form-label {
-            font-weight: 600;
-        }
-        .required::after {
-            content: " *";
-            color: red;
-        }
-        .loading {
-            display: none;
-        }
-        .error-message {
-            display: none;
-        }
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-        .loading-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            text-align: center;
-            max-width: 400px;
-            margin: 0 1rem;
-        }
-        @media (max-width: 768px) {
-            .container {
-                padding: 0.5rem;
-            }
-            .card {
-                margin: 0.5rem 0;
-            }
-            .navbar-brand {
-                font-size: 1rem;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>貯水槽修理案件管理システム</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body { background: #f7f9fb; }
+    .required::after { content: " *"; color: red; }
+    .loading, .loading-overlay, .error-message { display: none; }
+    .loading-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+  </style>
 </head>
+
 <body>
-    <nav class="navbar navbar-dark bg-primary">
-        <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">
-                <i class="bi bi-tools"></i> 貯水槽修理案件管理システム
-            </span>
-        </div>
-    </nav>
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-8 offset-md-2">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0"><i class="bi bi-clipboard-check"></i> 修理案件入力</h4>
-                    </div>
-                    <div class="card-body">
-                        <form id="caseForm">
-                            <div class="mb-3">
-                                <label for="caseName" class="form-label required">案件名</label>
-                                <input type="text" class="form-control" id="caseName" name="case_name" required>
-                            </div>
+<!-- ナビ -->
+<nav class="navbar navbar-dark bg-primary">
+  <div class="container-fluid">
+    <span class="navbar-brand">
+      <i class="bi bi-tools"></i> 貯水槽修理案件管理システム
+    </span>
+  </div>
+</nav>
 
-                            <div class="mb-3">
-                                <label for="repairType" class="form-label required">修理種別</label>
-                                <select class="form-select" id="repairType" name="repair_type" required>
-                                    <option value="">選択してください</option>
-                                    <option value="漏水">漏水</option>
-                                    <option value="腐食">腐食</option>
-                                    <option value="ひび割れ">ひび割れ</option>
-                                    <option value="バルブ故障">バルブ故障</option>
-                                    <option value="蓋の破損">蓋の破損</option>
-                                    <option value="その他">その他</option>
-                                </select>
-                            </div>
+<div class="container my-4">
 
-                            <div class="mb-3">
-                                <label for="urgency" class="form-label required">緊急度</label>
-                                <select class="form-select" id="urgency" name="urgency" required>
-                                    <option value="">選択してください</option>
-                                    <option value="緊急">緊急（24時間以内）</option>
-                                    <option value="通常">通常（1週間以内）</option>
-                                    <option value="計画">計画（1ヶ月以内）</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="location" class="form-label required">現場情報（場所）</label>
-                                <input type="text" class="form-control" id="location" name="location" placeholder="例：本館3階" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="tankSize" class="form-label required">貯水槽規模</label>
-                                <input type="text" class="form-control" id="tankSize" name="tank_size" placeholder="例：10トン" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="description" class="form-label">詳細説明</label>
-                                <textarea class="form-control" id="description" name="description" rows="4" placeholder="詳細な説明を入力してください（任意）"></textarea>
-                            </div>
-
-                            <div class="alert alert-danger error-message" id="errorMessage" role="alert"></div>
-
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
-                                    <i class="bi bi-search"></i> RAG検索を実行
-                                </button>
-                            </div>
-
-                            <div class="loading mt-3 text-center" id="loading">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">読み込み中...</span>
-                                </div>
-                                <p class="mt-2">RAG検索を実行中です。しばらくお待ちください...</p>
-                                <div class="progress-bar-container mt-3">
-                                    <div class="progress-bar"></div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <!-- ===== 修理案件入力 ===== -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="bi bi-clipboard-plus"></i> 修理案件入力</h5>
     </div>
 
-    <!-- ローディングオーバーレイ -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-content">
-            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">読み込み中...</span>
-            </div>
-            <h5>RAG検索を実行中</h5>
-            <p class="text-muted">AIが回答を生成しています。しばらくお待ちください...</p>
+    <div class="card-body">
+      <form id="caseForm">
+
+        <div class="mb-3">
+          <label class="form-label required">案件名</label>
+          <input class="form-control" id="title" required>
         </div>
+
+        <div class="mb-3">
+          <label class="form-label required">修理種別</label>
+          <input class="form-control" id="type" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label required">緊急度</label>
+          <select class="form-select" id="priority" required>
+            <option value="">選択</option>
+            <option>高</option>
+            <option>中</option>
+            <option>低</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label required">現場情報</label>
+          <input class="form-control" id="location" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label required">貯水槽</label>
+          <input class="form-control" id="tank" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">詳細説明</label>
+          <textarea class="form-control" id="detail" rows="3"></textarea>
+        </div>
+
+        <div id="errorMessage" class="alert alert-danger error-message"></div>
+
+        <button class="btn btn-primary w-100" id="submitBtn">
+          <i class="bi bi-search"></i> RAG検索を実行
+        </button>
+
+        <div class="loading text-center mt-3" id="loading">
+          <div class="spinner-border text-primary"></div>
+          <p class="mt-2">処理中...</p>
+        </div>
+
+      </form>
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        const form = document.getElementById('caseForm');
-        const loading = document.getElementById('loading');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const errorMessage = document.getElementById('errorMessage');
-        const submitBtn = document.getElementById('submitBtn');
+  <!-- ===== 案件一覧 ===== -->
+  <h4 class="mb-3">
+    <i class="bi bi-list-ul"></i> 登録済み案件一覧（新しい順）
+  </h4>
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // バリデーション
-            if (!form.checkValidity()) {
-                form.classList.add('was-validated');
-                return;
-            }
+  <div id="casesList" class="row g-3"></div>
 
-            // UI更新
-            submitBtn.disabled = true;
-            loading.style.display = 'block';
-            loadingOverlay.style.display = 'flex';
-            errorMessage.style.display = 'none';
-            errorMessage.classList.remove('alert-danger', 'alert-warning', 'alert-info');
+</div>
 
-            // フォームデータを取得
-            const formData = new FormData(form);
-            const caseInfo = {
-                case_name: formData.get('case_name'),
-                repair_type: formData.get('repair_type'),
-                urgency: formData.get('urgency'),
-                location: formData.get('location'),
-                tank_size: formData.get('tank_size'),
-                description: formData.get('description'),
-            };
+<!-- ローディングオーバーレイ -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="bg-white p-4 rounded text-center">
+    <div class="spinner-border text-primary mb-3"></div>
+    <h6>AI処理中…</h6>
+  </div>
+</div>
 
-            // 検索クエリを生成
-            const query = `${caseInfo.repair_type}の修理について、${caseInfo.urgency}の案件です。${caseInfo.description || ''}`;
+<script>
+/* ===============================
+   修理案件登録 + RAG
+================================ */
+const form = document.getElementById('caseForm');
+const loading = document.getElementById('loading');
+const overlay = document.getElementById('loadingOverlay');
+const errorMessage = document.getElementById('errorMessage');
 
-            try {
-                // RAG検索・回答生成APIを呼び出し
-                const response = await fetch('/api/rag/answer', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        query: query,
-                        case_info: caseInfo,
-                        top_k: 20,  // より多くの検索結果を取得
-                    }),
-                });
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  errorMessage.style.display = 'none';
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'エラーが発生しました');
-                }
+  const payload = {
+    title: title.value,
+    type: type.value,
+    priority: priority.value,
+    location: location.value,
+    tank: tank.value,
+    detail: detail.value
+  };
 
-                const result = await response.json();
-                
-                // 結果をセッションストレージに保存して回答画面に遷移
-                sessionStorage.setItem('ragResult', JSON.stringify(result));
-                sessionStorage.setItem('caseInfo', JSON.stringify(caseInfo));
-                window.location.href = '/answer';
+  try {
+    loading.style.display = 'block';
+    overlay.style.display = 'flex';
 
-            } catch (error) {
-                let errorText = 'エラーが発生しました';
-                let errorType = 'alert-danger';
-                
-                if (error.message.includes('ネットワーク') || error.message.includes('fetch')) {
-                    errorText = 'ネットワークエラー: サーバーに接続できませんでした。インターネット接続を確認してください。';
-                    errorType = 'alert-warning';
-                } else if (error.message.includes('500') || error.message.includes('Internal Server')) {
-                    errorText = 'サーバーエラー: サーバー側で問題が発生しました。しばらく時間をおいて再度お試しください。';
-                    errorType = 'alert-danger';
-                } else if (error.message.includes('400') || error.message.includes('Bad Request')) {
-                    errorText = 'リクエストエラー: 入力内容を確認してください。';
-                    errorType = 'alert-warning';
-                } else {
-                    errorText = `エラー: ${error.message}`;
-                }
-                
-                errorMessage.textContent = errorText;
-                errorMessage.classList.add(errorType);
-                errorMessage.style.display = 'block';
-                
-                // エラーメッセージをスクロールして表示
-                errorMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            } finally {
-                submitBtn.disabled = false;
-                loading.style.display = 'none';
-                loadingOverlay.style.display = 'none';
-            }
-        });
+    const res = await fetch('/api/cases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
 
-        // Health check API呼び出し
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const response = await fetch('/api/health');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                console.log('health:', data);
-            } catch (error) {
-                console.error(error);
-            }
-        });
-    </script>
+    if (!res.ok) throw new Error('保存失敗');
+
+    await res.json();
+    await loadCases();   // ★ ここがUI直結
+
+    form.reset();
+
+  } catch (err) {
+    errorMessage.textContent = err.message;
+    errorMessage.style.display = 'block';
+  } finally {
+    loading.style.display = 'none';
+    overlay.style.display = 'none';
+  }
+});
+
+/* ===============================
+   案件一覧（createdAt 降順）
+================================ */
+async function loadCases() {
+  const res = await fetch('/api/cases');
+  const data = await res.json();
+
+  const list = document.getElementById('casesList');
+  list.innerHTML = '';
+
+  data.items
+    .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))
+    .forEach(c => {
+      list.innerHTML += `
+        <div class="col-md-6">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <h5>${c.title}</h5>
+              <p class="mb-1"><strong>種別:</strong> ${c.type}</p>
+              <p class="mb-1"><strong>緊急度:</strong> ${c.priority}</p>
+              <p class="mb-1"><strong>場所:</strong> ${c.location}</p>
+              <p class="mb-1"><strong>貯水槽:</strong> ${c.tank}</p>
+              <p class="text-muted small mt-2">
+                登録日時: ${new Date(c.createdAt).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+}
+
+/* ===============================
+   初期処理
+================================ */
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadCases();
+  try {
+    const r = await fetch('/api/health');
+    console.log('health:', await r.json());
+  } catch {}
+});
+</script>
+
 </body>
 </html>
-

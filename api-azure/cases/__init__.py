@@ -2,90 +2,68 @@ import azure.functions as func
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from azure.data.tables import TableServiceClient
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
-        # 環境変数
-        conn_str = os.environ["TABLE_CONNECTION_STRING"]
-        table_name = os.environ["CASES_TABLE_NAME"]
-
-        # Table Service
-        service = TableServiceClient.from_connection_string(conn_str)
-        service.create_table_if_not_exists(table_name)
-        table = service.get_table_client(table_name)
-
-        # =========================
-        # GET /api/cases
-        # =========================
+        # GET: 一覧取得
         if req.method == "GET":
-            entities = table.list_entities()
-            items = []
+            conn_str = os.environ["TABLE_CONNECTION_STRING"]
+            table_name = os.environ["CASES_TABLE_NAME"]
 
-            for e in entities:
-                items.append(dict(e))
+            service = TableServiceClient.from_connection_string(conn_str)
+            table = service.get_table_client(table_name)
 
-            # createdAt で新しい順（降順）にソート
-            items.sort(
+            entities = list(table.list_entities())
+
+            # createdAt 降順ソート
+            entities.sort(
                 key=lambda x: x.get("createdAt", ""),
                 reverse=True
             )
 
             return func.HttpResponse(
-                json.dumps(
-                    {"ok": True, "items": items},
-                    ensure_ascii=False
-                ),
+                json.dumps({"ok": True, "items": entities}, ensure_ascii=False),
                 mimetype="application/json",
                 status_code=200
             )
 
-        # =========================
-        # POST /api/cases
-        # =========================
-        if req.method == "POST":
-            body = req.get_json()
+        # POST: 新規作成
+        body = req.get_json()
 
-            entity = {
-                "PartitionKey": "CASE",
-                "RowKey": str(uuid.uuid4()),
-                "title": body.get("title"),
-                "type": body.get("type"),
-                "priority": body.get("priority"),
-                "location": body.get("location"),
-                "tank": body.get("tank"),
-                "detail": body.get("detail"),
-                "createdAt": datetime.utcnow().isoformat()
-            }
+        conn_str = os.environ["TABLE_CONNECTION_STRING"]
+        table_name = os.environ["CASES_TABLE_NAME"]
 
-            table.create_entity(entity)
+        service = TableServiceClient.from_connection_string(conn_str)
+        table = service.get_table_client(table_name)
 
-            return func.HttpResponse(
-                json.dumps(
-                    {"ok": True, "saved": entity},
-                    ensure_ascii=False
-                ),
-                mimetype="application/json",
-                status_code=200
-            )
+        now = datetime.now(timezone.utc).isoformat()
 
-        # =========================
-        # Method Not Allowed
-        # =========================
+        entity = {
+            "PartitionKey": "CASE",
+            "RowKey": str(uuid.uuid4()),
+            "title": body.get("title"),
+            "type": body.get("type"),
+            "priority": body.get("priority"),
+            "location": body.get("location"),
+            "tank": body.get("tank"),
+            "detail": body.get("detail"),
+            "createdAt": now
+        }
+
+        table.create_entity(entity)
+
         return func.HttpResponse(
-            json.dumps({"ok": False, "error": "Method Not Allowed"}),
+            json.dumps({"ok": True, "saved": entity}, ensure_ascii=False),
             mimetype="application/json",
-            status_code=405
+            status_code=200
         )
 
     except Exception as e:
         return func.HttpResponse(
-            json.dumps(
-                {"ok": False, "error": str(e)},
-                ensure_ascii=False
-            ),
+            json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False),
             mimetype="application/json",
             status_code=500
         )

@@ -1,7 +1,7 @@
 # 貯水槽修理案件管理システム 進捗管理
 
-**最終更新日**：2024年1月  
-**プロジェクトステータス**：✅ 実装完了（PoC版）
+**最終更新日**：2024年12月  
+**プロジェクトステータス**：🔵 Azure移行進行中
 
 ---
 
@@ -9,7 +9,8 @@
 
 - **プロジェクト名**：貯水槽修理案件管理システム
 - **目的**：RAGを活用した修理案件の判断支援Webアプリケーション
-- **技術スタック**：FastAPI + LlamaIndex + OpenAI API + SQLite
+- **技術スタック（PoC版）**：FastAPI + LlamaIndex + OpenAI API + SQLite
+- **技術スタック（Azure版）**：Azure Functions + Azure Static Web Apps + Azure Table Storage + Azure Blob Storage + Azure Entra ID + LlamaIndex + OpenAI API
 - **Knowledge**：既存30個のtxtファイル（`/Users/takuminittono/Desktop/ragstudy/ラグルール/knowledge/`）
 
 ---
@@ -19,10 +20,11 @@
 | フェーズ | ステータス | 進捗率 | 備考 |
 |---------|----------|--------|------|
 | 要件定義 | ✅ 完了 | 100% | REQUIREMENTS.md作成完了 |
-| 設計 | ✅ 完了 | 100% | 進捗管理ファイル作成完了 |
-| 実装 | ✅ 完了 | 100% | Phase 0-13完了 |
-| テスト | 🔵 進行中 | 80% | 各実装フェーズで随時実施 |
-| デプロイ | ⚪ 未着手 | 0% | Phase 14完了、デプロイ準備完了 |
+| 設計 | ✅ 完了 | 100% | Azure.md要件定義書作成完了 |
+| PoC実装 | ✅ 完了 | 100% | Phase 0-14完了（FastAPI + SQLite版） |
+| Azure移行 | 🔵 進行中 | 30% | Azure Functions + Table Storage移行中 |
+| テスト | 🔵 進行中 | 50% | 各実装フェーズで随時実施 |
+| デプロイ | 🔵 進行中 | 20% | Azure Static Web Apps準備中 |
 
 ### 実装フェーズ進捗
 
@@ -684,6 +686,9 @@
 |------|---------|--------|
 | 2024-01 | 進捗管理ファイル作成 | - |
 | 2024-01 | 実装フェーズを14段階に詳細化。各フェーズで動作確認できるよう設計 | - |
+| 2024-12 | Azure移行進捗を追加。Phase 1-3完了を記録 | - |
+| 2024-12 | Azure Functions実装状況を更新（health, cases, search） | - |
+| 2024-12 | フロントエンド連携状況を更新 | - |
 
 ---
 
@@ -694,7 +699,90 @@
    - `requirements.txt`作成
    - `.env`ファイル作成
 
-**現在のフェーズ**：Phase 0（環境準備・プロジェクト基盤）
+---
+
+## 🚀 Azure移行進捗（2024年12月開始）
+
+### Azure移行フェーズ
+
+| フェーズ | フェーズ名 | ステータス | 完了日 | 備考 |
+|-------|-----------|----------|--------|------|
+| **Azure Phase 1** | 最小API作成 | ✅ 完了 | 2024-12 | `/api/health`エンドポイント実装完了 |
+| **Azure Phase 2** | 案件管理API | ✅ 完了 | 2024-12 | `/api/cases`（Azure Table Storage）実装完了 |
+| **Azure Phase 3** | フロントエンド連携 | ✅ 完了 | 2024-12 | `frontend-azure/index.html`で`/api/health`呼び出し実装 |
+| **Azure Phase 4** | Knowledge管理API | ⚪ 未着手 | - | Blob Storage対応版の実装 |
+| **Azure Phase 5** | RAG検索API | 🔵 進行中 | - | `/api/search`スタブ実装済み、RAG統合待ち |
+| **Azure Phase 6** | ログ管理API | ⚪ 未着手 | - | Table Storage対応版の実装 |
+| **Azure Phase 7** | 認証統合 | ⚪ 未着手 | - | Azure Entra ID統合 |
+| **Azure Phase 8** | デプロイ | 🔵 進行中 | - | Azure Static Web Apps + Functions準備中 |
+
+### 実装済み機能
+
+#### ✅ Azure Functions API（`api-azure/`）
+
+1. **`/api/health`** - ヘルスチェック
+   - 実装ファイル: `api-azure/health/__init__.py`
+   - 機能: `{"status": "ok"}`を返す
+   - ステータス: ✅ 完了
+
+2. **`/api/cases`** - 案件管理
+   - 実装ファイル: `api-azure/cases/__init__.py`
+   - 機能: 
+     - GET: 案件一覧取得（Azure Table Storage）
+     - POST: 案件作成（Azure Table Storage）
+   - ステータス: ✅ 完了
+   - 使用サービス: Azure Table Storage
+
+3. **`/api/search`** - 検索API（スタブ）
+   - 実装ファイル: `api-azure/search/__init__.py`
+   - 機能: スタブ実装（動作確認用）
+   - ステータス: 🔵 進行中（RAG統合待ち）
+
+#### ✅ フロントエンド（`frontend-azure/`）
+
+1. **`index.html`** - メイン画面
+   - 機能: `/api/health`呼び出し実装済み
+   - ステータス: ✅ 完了
+
+### 実装ファイル一覧
+
+```
+api-azure/
+├── health/
+│   ├── __init__.py          ✅ 実装完了
+│   └── function.json         ✅ 設定完了
+├── cases/
+│   ├── __init__.py          ✅ 実装完了（Azure Table Storage対応）
+│   └── function.json         ✅ 設定完了
+├── search/
+│   ├── __init__.py          🔵 スタブ実装（RAG統合待ち）
+│   └── function.json         ✅ 設定完了
+├── host.json                 ✅ 設定完了
+└── requirements.txt         ✅ 依存パッケージ定義済み
+
+frontend-azure/
+├── index.html               ✅ `/api/health`呼び出し実装済み
+└── templates/               ✅ HTMLテンプレート準備済み
+```
+
+### 次のステップ
+
+1. **RAG検索API統合** - `/api/search`にRAG機能を統合
+2. **Knowledge管理API** - Blob Storage対応版の実装
+3. **ログ管理API** - Table Storage対応版の実装
+4. **Azure Entra ID認証** - 認証統合
+5. **Azure Static Web Appsデプロイ** - 本番環境へのデプロイ
+
+### 参考ドキュメント
+
+- **`Azure.md`** - Azure移行要件定義書
+- **`AZURE_MIGRATION_GUIDE.md`** - 詳細な移行手順書
+- **`MIGRATION_CODE_EXAMPLES.md`** - コード変更例集
+- **`MIGRATION_SUMMARY.md`** - クイックスタートガイド
+
+---
+
+**現在のフェーズ**：Azure移行 Phase 3完了 → Phase 4（Knowledge管理API）準備中
 
 **重要**：各フェーズは前のフェーズが完全に動作確認できてから進むこと。
 
