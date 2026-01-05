@@ -4,17 +4,16 @@ import os
 import uuid
 from azure.data.tables import TableServiceClient
 
-
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         body = req.get_json()
 
-        # 環境変数
         conn_str = os.environ["TABLE_CONNECTION_STRING"]
         table_name = os.environ["CASES_TABLE_NAME"]
 
         service = TableServiceClient.from_connection_string(conn_str)
         table = service.get_table_client(table_name)
+        table.create_table_if_not_exists()
 
         entity = {
             "PartitionKey": "CASE",
