@@ -1,8 +1,12 @@
+# Python
+__pycache__/
+*.pyc
 venv/
 .env
-.env.*
 .env.local
-__pycache__/
-*.log
-.DS_Store
+
+# Old FastAPI stuff
+app/
+storage/
+scripts/
 rag_kanri.db
