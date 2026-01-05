@@ -3,13 +3,17 @@ import json
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
-        data = req.get_json()
+        body = req.get_body()
+        body_str = body.decode("utf-8") if body else "{}"
+        data = json.loads(body_str)
+
         query = data.get("query", "")
 
         return func.HttpResponse(
             json.dumps({
+                "ok": True,
                 "query": query,
-                "result": "dummy search result"
+                "message": "search endpoint works"
             }),
             mimetype="application/json",
             status_code=200
@@ -17,7 +21,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     except Exception as e:
         return func.HttpResponse(
-            json.dumps({"error": str(e)}),
+            json.dumps({
+                "ok": False,
+                "error": str(e)
+            }),
             mimetype="application/json",
-            status_code=400
+            status_code=500
         )
