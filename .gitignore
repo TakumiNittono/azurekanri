@@ -1,12 +1,28 @@
-# Python
-__pycache__/
-*.pyc
+# ===== Python =====
 venv/
 .env
 .env.local
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Old FastAPI stuff
-app/
-storage/
-scripts/
+# ===== Database / Storage =====
 rag_kanri.db
+storage/
+storage/index/
+
+# ===== OS / Editor =====
+.DS_Store
+.vscode/
+.idea/
+
+# ===== Node =====
+node_modules/
+dist/
+build/
+
+# ===== Logs =====
+*.log
+*.tmp
+*.swp
