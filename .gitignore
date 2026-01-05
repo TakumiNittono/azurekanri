@@ -1,28 +1,38 @@
-# ===== Python =====
-venv/
-.env
-.env.local
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
+.eggs/
+build/
+dist/
 
-# ===== Database / Storage =====
-rag_kanri.db
-storage/
-storage/index/
+# Virtual Env
+venv/
+.venv/
+env/
 
-# ===== OS / Editor =====
+# Python package cache
+.python_packages/
+pip-wheel-metadata/
+
+# Azure / Functions
+.azure-functions/
+
+# Node (just in case)
+node_modules/
+
+# Env files
+.env
+.env.*
+.env.local
+
+# OS / Editor
 .DS_Store
 .vscode/
 .idea/
-
-# ===== Node =====
-node_modules/
-dist/
-build/
-
-# ===== Logs =====
-*.log
-*.tmp
-*.swp
+# Database
+*.db
+*.sqlite
+*.sqlite3
